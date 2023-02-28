@@ -1,7 +1,6 @@
 # OSC-Clock-Project
 In this repository you will find the source code for the diy smart home clock OSC.
-Instructable coming soon
-
+The instructable can be found here: [Instructables.com](https://www.instructables.com/DIY-Smart-Home-Clock-OSC/)
 
 # Folder structure
 - the folder `documents/` contains info files of the clock
@@ -22,5 +21,5 @@ You will need multiple libraries to compile the source code:
 
 # CREDITS
 OSC-PROJECT-FILES
-Created by Donut Studio and Pr0metheuz_, January 23, 2023.
+Created by Donut Studio and Pr0metheuz_, January 25, 2023.
 Released into the public domain.
