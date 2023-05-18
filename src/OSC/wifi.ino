@@ -1,6 +1,6 @@
 /*
   OSC-PROJECT-FILES
-  Created by Donut Studio and Pr0metheuz_, April 01, 2023.
+  Created by Donut Studio and Pr0metheuz_, May 15, 2023.
   Released into the public domain.
 */
 
@@ -12,7 +12,6 @@ bool tryWifiConnection()
   // stop the current connection and all clients
   WiFi.disconnect();
   timeClient.end();
-  weatherClient.stop();
 
   // display the connection text
   displayScrollText(tryConnectionText, textScrollTime);
@@ -65,7 +64,6 @@ bool isConnected()
     else
     {
       timeClient.end();
-      weatherClient.stop();
     }
   }
   // return the status
@@ -200,94 +198,133 @@ String scanNetworks()
 
 String getWeatherAPIResult()
 {
-  // set the loading text
+    // set the loading text
   displayText(loadingText, 0);
+  // get the api responce from openweathermap.org
+  String apiResponce = sendAPIRequest("api.openweathermap.org", "/data/2.5/forecast?q=" + cityName + "&appid=" + weatherAPIKey + "&mode=json&units=metric&lang=de&cnt=2 HTTP/1.1", WEATHERAPIREQUESTTIMEOUT);
 
-  // stop the weather client
-  weatherClient.stop();
-
-  // connect to the openweathermap api and request data
-  if (weatherClient.connect("api.openweathermap.org", 80))
-  {
-    weatherClient.println("GET /data/2.5/weather?q=" + cityName + "&appid=" + weatherAPIKey + "&mode=json&units=metric&lang=de&cnt=2 HTTP/1.1");
-    weatherClient.println("Host: api.openweathermap.org");
-    weatherClient.println("User-Agent: ArduinoWiFi/1.1");
-    weatherClient.println("Connection: close");
-    weatherClient.println();
-  } 
-  else
+  // return if the responce was not successful
+  if (apiResponce == "connection failure" || apiResponce == "timeout")
     return noWeatherDataText;
 
-  // wait for a responce
-  unsigned long timeout = millis();
-  while (weatherClient.available() == 0) 
-  {
-    // timeout handling
-    if (millis() - timeout > WEATHERAPIREQUESTTIMEOUT) 
-    {
-      weatherClient.stop();
-      return noWeatherDataText;
-    }
-  }
-
-
-  String text;
+  // phrase the responce 
+  String json;
+  int length = apiResponce.length();
   bool jsonStarted = false;
-
-  // save the responce to the text-variable
-  while (weatherClient.available()) 
+  for (int i = 0; i < length; i++)
   {
-    // read the char of the responce
-    char c = weatherClient.read();
-
     // check if the json has not been started
-    if (!jsonStarted && c == '{')
+    if (!jsonStarted && apiResponce[i] == '{')
       jsonStarted = true;
+    // add the character to the text
     if (jsonStarted)
-    {
-      // add the character to the text
-      text += c;
-      // wait 2 milliseconds
-      delay(2);
-    }
+      json += apiResponce[i];
   }
-
-  // stop the
-  weatherClient.stop();
-
 
   /* See: https://arduinojson.org/v5/assistant/ for more information */
-  const size_t capacity = JSON_ARRAY_SIZE(1) + 2*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(8) + JSON_OBJECT_SIZE(14) + 480;
+  const size_t capacity = 4*JSON_ARRAY_SIZE(1) + JSON_ARRAY_SIZE(4) + 11*JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(2) + 4*JSON_OBJECT_SIZE(3) + 4*JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5) + JSON_OBJECT_SIZE(8) + 5*JSON_OBJECT_SIZE(9) + 3*JSON_OBJECT_SIZE(10) + 1640;
   DynamicJsonBuffer jsonBuffer(capacity);
-  JsonObject& root = jsonBuffer.parseObject(text.c_str());
+
+  JsonObject& root = jsonBuffer.parseObject(json);
   if (!root.success())
     return noWeatherDataText;
-
+  
   // check if the responce was successful and phrase the data and return it
-  if(root["cod"] == 200)
+  if (root["cod"] == 200)
   {
-    String weatherDesc = root["weather"][0]["description"];
+    // get the furthest forecast 
+    int index;
+    for (int i = 0; i < 5; i++)
+    {
+      if (!root["list"][i].success())
+      {
+        index = i - 1;
+        break;
+      }
+    }
 
-    JsonObject& main = root["main"];
-    float temp = main["temp"];
-    float tempLike = main["feels_like"];
-    float windSpeed = root["wind"]["speed"];
-    int windDeg = root["wind"]["deg"];
+    // is there a forecast available
+    if (index >= 0)
+    {
+      // get the data of the forecast
+      JsonObject& list = root["list"][index];
 
-    int clouds = root["clouds"]["all"];
+      String result = "+++ ";
 
+      ///* set the time
+      const char* date = list["dt_txt"];
+      result += String(date[11]) + String(date[12]) + ":00";
+      //*/
 
-    String directions = "N NOO SOS SWW NW";  // wind direction (N NO O SO S SW W NW) always 2 chars long
-    int wr = (windDeg + 22) % 360 / 45;
-    String windDirection = directions.substring(2 * wr, 2 * wr + 2);
-    windDirection.trim();
+      ///* set the description and temperature
+      String weatherDesc = list["weather"][0]["description"];
+      result += " + " + weatherDesc + ", " + String((float)list["main"]["temp"], 1) + "°C";
+      //*/
 
-    String result = "+++ " + weatherDesc;
-    result += ", " + String(temp, 1) + "°C";
-    result += " +++ wind " + String(windSpeed * 3.6, 1) + "km/h  from " + windDirection + " +++";
+      ///* rain propability (between 0 and 1)
+      result += " + Rain: " + String((float)list["pop"] * 100, 1) + "%";
+      //*/
 
-    return result;
+      ///* clouds (between 0 and 100)
+      result += " + Clouds: " + String((int)list["clouds"]["all"]) + "%";
+      //*/
+
+      ///* --- WIND ---
+      int wr = ((int)list["wind"]["deg"] + 22) % 360 / 45;
+      String windDir = windDirections.substring(2 * wr, 2 * wr + 2);
+      windDir.trim();
+      result += " + Wind " + String((float)list["wind"]["speed"] * 3.6, 1) + "km/h from " + windDir + " +++";
+      //*/
+
+      return result;
+    }
   }
 
   return noWeatherDataText;
+}
+
+WiFiClient _apiRequestClient;
+String sendAPIRequest(String apiURL, String request, int requestTimeout)
+{
+  // stop the client first
+  _apiRequestClient.stop();
+
+  // connect to the url
+  if (_apiRequestClient.connect(apiURL, 80))
+  {
+    _apiRequestClient.println("GET " + request);
+    _apiRequestClient.println("Host: " + apiURL);
+    _apiRequestClient.println("User-Agent: ArduinoWiFi/1.1");
+    _apiRequestClient.println("Connection: close");
+    _apiRequestClient.println();
+  }
+  else 
+  {
+    // stop the client and return an error responce
+    _apiRequestClient.stop();
+    return "connection failure";
+  }
+  
+  // wait for a responce
+  unsigned long timestamp = millis();
+  while (_apiRequestClient.available() == 0) 
+  {
+    // timeout handling
+    if (millis() - timestamp > requestTimeout) 
+    {
+      // stop the client and return an error responce
+      _apiRequestClient.stop();
+      return "timeout";
+    }
+  }
+
+  // read the responce from the request and return it
+  String responce = "";
+  while (_apiRequestClient.available())
+  {
+    responce += (char)_apiRequestClient.read();
+    delay(2);
+  }
+  _apiRequestClient.stop();
+  return responce;
 }

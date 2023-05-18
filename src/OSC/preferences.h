@@ -1,6 +1,6 @@
 /*
   OSC-PROJECT-FILES
-  Created by Donut Studio and Pr0metheuz_, April 01, 2023.
+  Created by Donut Studio and Pr0metheuz_, May 15, 2023.
   Released into the public domain.
 */
 
@@ -90,12 +90,11 @@ DHT dht(DHTPIN, DHTTYPE);
 WiFiUDP ntpUDP;
 const unsigned long timeUpdateInterval = 3600000; // (in milliseconds), 3600000 = 1h
 // "countryID.pool.ntp.org" -> ntp server url, timeoffset in seconds
-NTPClient timeClient(ntpUDP, "de.pool.ntp.org", 3600, timeUpdateInterval);
+NTPClient timeClient(ntpUDP, "countryID.pool.ntp.org", 0, timeUpdateInterval);
 
 /* --- WEATHERAPI --- */
-WiFiClient weatherClient;
 String cityName = "cityName,countryID";
-const unsigned long weatherUpdateInterval = 1800000; // (in milliseconds), 1800000 = 30min
+const unsigned long weatherUpdateInterval = 3600000; // (in milliseconds), 3600000 = 1h
 
 // time library
 MillisTime clkTime = MillisTime(12, 0, 0); 
