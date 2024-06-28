@@ -17,9 +17,9 @@ You will need multiple libraries to compile the source code:
 - MD_MAX72xx
 - NTPClient
 - ArduinoJSON (! v5.13.4 !)
-- DonutStudioMillisTime ([Millis Time](https://github.com/Donut-Studio/Arduino-Millis-Time-Library))
-- DonutStudioTimer ([Timer](https://github.com/Donut-Studio/Arduino-Timer-Library))
-- DonutStudioStopwatch ([Stopwatch](https://github.com/Donut-Studio/Arduino-Stopwatch-Library))
+- DonutStudioMillisTime ([Millis Time](https://github.com/KonradWohlfahrt/Arduino-Millis-Time-Library))
+- DonutStudioTimer ([Timer](https://github.com/KonradWohlfahrt/Arduino-Timer-Library))
+- DonutStudioStopwatch ([Stopwatch](https://github.com/KonradWohlfahrt/Arduino-Stopwatch-Library))
 - Arduino FFT
 - DHT sensor library
 
